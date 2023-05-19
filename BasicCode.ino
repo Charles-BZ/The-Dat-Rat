@@ -13,11 +13,13 @@
 uint16_t sensorValues[8]; // right -> left, 0 -> 7
 float sensorMins[8] = {828, 712, 734, 689, 666, 732, 758, 757.2};
 float sensorMax[8] = {1672, 1747, 1766, 1074.6, 1187.6, 1768, 1661.6, 1742.8};
-float sensorWeights[8] = {-15, -14, -12, -8, 8, 12, 14, 15};
+//float sensorWeights[8] = {-15, -14, -12, -8, 8, 12, 14, 15};
+float sensorWeights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
 float error = 0;
 float pastError = 0;
 
-float Kp = 0.0075;
+float Kp = 0.01;
+float Kd = 0.45;
 
 
 const int left_nslp_pin=31; // nslp ==> awake & ready for PWM
@@ -46,7 +48,7 @@ float sensorFusion() {
     temp_error += temp_vals[i];
     //Serial.println(temp_error);
   }
-  return temp_error;
+  return temp_error / 4;
 }
 
 
@@ -65,10 +67,10 @@ void setup() {
   pinMode(right_dir_pin,OUTPUT);
   pinMode(right_pwm_pin,OUTPUT);
 
-  digitalWrite(left_dir_pin,HIGH);
+  digitalWrite(left_dir_pin,LOW);
   digitalWrite(left_nslp_pin,HIGH);
 
-  digitalWrite(right_dir_pin,HIGH);
+  digitalWrite(right_dir_pin,LOW);
   digitalWrite(right_nslp_pin,HIGH);
 
   pinMode(LED_RF, OUTPUT);
@@ -90,12 +92,13 @@ void loop() {
 
   pastError = error;
   error = sensorFusion();
-  Serial.println(error);
+  //Serial.println(error);
+  float derivative = error - pastError;
 
-  float output = Kp * error;
+  float output = Kp * error + Kd * derivative;
   float leftOutput = leftSpd - output;
   float rightOutput = rightSpd + output;
-
+  //Serial.println(output);
   analogWrite(left_pwm_pin,leftOutput);
   analogWrite(right_pwm_pin,rightOutput);
 
@@ -108,5 +111,5 @@ void loop() {
   Serial.println();
 */
 
-  delay(100);
+  delay(0);
   }
