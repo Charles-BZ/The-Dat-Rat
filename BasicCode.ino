@@ -51,6 +51,10 @@ bool Turn1 = false;
 
 bool hasOffset = false;
 bool Offset = false;
+
+bool hasTurned2 = false;
+bool Turn2 = false;
+
 float sensorFusion() {
   float temp_error = 0;
   float temp_vals[8];
@@ -184,6 +188,8 @@ void loop() {
      if(getEncoderCount_left() > 500 && getEncoderCount_right() > 500) {
           leftSpd = 100;
           rightSpd = 100;
+          resetEncoderCount_left();
+          resetEncoderCount_right();
           Offset = false;
      }   
   }
@@ -203,6 +209,22 @@ void loop() {
   }
   else {
     donut = false;
+  }
+
+  if (hasTurned2 == false && Offset == false && hasGlazed == true){
+   if(getEncoderCount_left() > 4000 && getEncoderCount_right() > 4000) { 
+    leftSpd = 70;
+    rightSpd = 70;
+    Turn2 = true;
+    hasTurned2 = true;
+   }
+  }
+  if (Turn2 == true){
+      if(getEncoderCount_left() > 1500 && getEncoderCount_right() > 1500) {
+          leftSpd = 80;
+          rightSpd = 80;
+          Turn2 = false;  
+      }
   }
   
   float output = Kp * error + Kd * derivative;
