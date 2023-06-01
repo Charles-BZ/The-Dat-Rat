@@ -13,14 +13,17 @@
 uint16_t sensorValues[8]; // right -> left, 0 -> 7
 float sensorMins[8] = {828, 712, 734, 689, 666, 732, 758, 757.2};
 float sensorMax[8] = {1672, 1747, 1766, 1074.6, 1187.6, 1768, 1661.6, 1742.8};
-//float sensorWeights[8] = {-15, -14, -12, -8, 8, 12, 14, 15};
-float sensorWeights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
+float sensorWeights[8] = {-15, -14, -12, -8, 8, 12, 14, 15};
+//float sensorWeights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
 float error = 0;
 float pastError = 0;
 
-float Kp = 0.09;
+float Kp = 0.05;
 float Kd = 0.3;
 //works for turn: 0.09, 0.2
+//turn: 0.1, 0.3, 70 (8/4)
+//rly good turn: 0.05, 0.3, 70 (15/14)
+//only turns if straight: 0.04, 0.35, 80 (15/14)
 
 const int left_nslp_pin=31; // nslp ==> awake & ready for PWM
 const int left_dir_pin=29;
@@ -32,8 +35,8 @@ const int right_pwm_pin=39;
 
 const int LED_RF = 41;
 
-int leftSpd = 80;
-int rightSpd = 80;
+int leftSpd = 70;
+int rightSpd = 70;
 
 float leftOutput = 0;
 float rightOutput = 0;
@@ -43,7 +46,11 @@ int turnSpeed = 100;
 bool donut = false;
 bool hasGlazed = false;
 
+bool hasTurned1 = false;
+bool Turn1 = false;
 
+bool hasOffset = false;
+bool Offset = false;
 float sensorFusion() {
   float temp_error = 0;
   float temp_vals[8];
@@ -56,7 +63,7 @@ float sensorFusion() {
     temp_error += temp_vals[i];
     //Serial.println(temp_error);
   }
-  return temp_error / 4;
+  return temp_error / 8;
 }
 
 
@@ -142,8 +149,36 @@ void loop() {
   error = sensorFusion();
   float derivative = error - pastError;
 
-  if(sensorValues[0] < 850 && sensorValues[1] < 770 && sensorValues[2] < 780 && sensorValues[3] < 720 && sensorValues[4] < 710
-  && sensorValues[5] < 780 && sensorValues[6] < 800 && sensorValues[7] < 820) {
+  if (hasTurned1 == false){
+   leftSpd = 70;
+   rightSpd = 70;
+   Turn1 = true;
+   hasTurned1 = true;
+  }
+  if (Turn1 == true){
+      if(getEncoderCount_left() > 1500 && getEncoderCount_right() > 1500) {
+          leftSpd = 200;
+          rightSpd = 200;
+          Turn1 = false;  
+          resetEncoderCount_left();
+          resetEncoderCount_right();
+          Offset = true;
+      }
+  }
+   
+  if(Offset) {
+      if(getEncoderCount_left() > 2000 && getEncoderCount_right() > 2000) {
+          leftSpd = 50;
+          rightSpd = 50;  
+          resetEncoderCount_left();
+          resetEncoderCount_right();
+          Offset = false;
+      }
+  }
+  
+
+  if(sensorValues[0] < 860 && sensorValues[1] < 780 && sensorValues[2] < 790 && sensorValues[3] < 730 && sensorValues[4] < 720
+  && sensorValues[5] < 790 && sensorValues[6] < 810 && sensorValues[7] < 830) {
     if(donut){
       if(hasGlazed) {
         ChangeBaseSpeeds(leftOutput, 0, rightOutput, 0);
@@ -166,14 +201,5 @@ void loop() {
   analogWrite(left_pwm_pin,leftOutput);
   analogWrite(right_pwm_pin,rightOutput);
   
-/*
-  for (unsigned char i = 0; i < 8; i++)
-  {
-    Serial.print(sensorValues[i]);
-    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
-  }
-  Serial.println();
-*/
-
   delay(0);
   }
