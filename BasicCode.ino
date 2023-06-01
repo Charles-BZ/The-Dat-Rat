@@ -18,9 +18,9 @@ float sensorWeights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
 float error = 0;
 float pastError = 0;
 
-float Kp = 0.01;
-float Kd = 0.45;
-
+float Kp = 0.09;
+float Kd = 0.3;
+//works for turn: 0.09, 0.2
 
 const int left_nslp_pin=31; // nslp ==> awake & ready for PWM
 const int left_dir_pin=29;
@@ -32,8 +32,16 @@ const int right_pwm_pin=39;
 
 const int LED_RF = 41;
 
-int leftSpd = 30;
-int rightSpd = 30;
+int leftSpd = 80;
+int rightSpd = 80;
+
+float leftOutput = 0;
+float rightOutput = 0;
+
+int turnSpeed = 100;
+
+bool donut = false;
+bool hasGlazed = false;
 
 
 float sensorFusion() {
@@ -53,7 +61,47 @@ float sensorFusion() {
 
 
 
+void  ChangeBaseSpeeds(int initialLeftSpd,int finalLeftSpd,int initialRightSpd,int finalRightSpd) {
+/*  
+ *   This function changes the car speed gradually (in about 30 ms) from initial
+ *   speed to final speed. This non-instantaneous speed change reduces the load 
+ *   on the plastic geartrain, and reduces the failure rate of the motors. 
+ */
+  int diffLeft  = finalLeftSpd-initialLeftSpd;
+  int diffRight = finalRightSpd-initialRightSpd;
+  int stepIncrement = 20;
+  int numStepsLeft  = abs(diffLeft)/stepIncrement;
+  int numStepsRight = abs(diffRight)/stepIncrement;
+  int numSteps = max(numStepsLeft,numStepsRight);
+  
+  int pwmLeftVal = initialLeftSpd;        // initialize left wheel speed 
+  int pwmRightVal = initialRightSpd;      // initialize right wheel speed 
+  int deltaLeft = (diffLeft)/numSteps;    // left in(de)crement
+  int deltaRight = (diffRight)/numSteps;  // right in(de)crement
 
+  for(int k=0;k<numSteps;k++) {
+    pwmLeftVal = pwmLeftVal + deltaLeft;
+    pwmRightVal = pwmRightVal + deltaRight;
+    analogWrite(left_pwm_pin,pwmLeftVal);    
+    analogWrite(right_pwm_pin,pwmRightVal); 
+    delay(30);   
+  } // end for int k
+  analogWrite(left_pwm_pin,finalLeftSpd);  
+  analogWrite(right_pwm_pin,finalRightSpd);  
+} // end void  ChangeWheelSpeeds
+
+
+void turn() {
+  ChangeBaseSpeeds(leftOutput, 0, rightOutput, 0);
+  digitalWrite(right_dir_pin,HIGH);
+  ChangeBaseSpeeds(0, turnSpeed, 0, turnSpeed);
+  resetEncoderCount_left();
+  resetEncoderCount_right();
+  while(getEncoderCount_left() < 300 && getEncoderCount_right() < 300) {}
+  digitalWrite(right_dir_pin,LOW);
+  ChangeBaseSpeeds(turnSpeed, leftSpd, turnSpeed, rightSpd);
+  hasGlazed = true;
+}
 
 
 ///////////////////////////////////
@@ -92,16 +140,32 @@ void loop() {
 
   pastError = error;
   error = sensorFusion();
-  //Serial.println(error);
   float derivative = error - pastError;
 
+  if(sensorValues[0] < 850 && sensorValues[1] < 770 && sensorValues[2] < 780 && sensorValues[3] < 720 && sensorValues[4] < 710
+  && sensorValues[5] < 780 && sensorValues[6] < 800 && sensorValues[7] < 820) {
+    if(donut){
+      if(hasGlazed) {
+        ChangeBaseSpeeds(leftOutput, 0, rightOutput, 0);
+        exit(0);
+      }
+      turn();
+      donut = false;
+    }
+    else
+      donut = true;
+  }
+  else {
+    donut = false;
+  }
+  
   float output = Kp * error + Kd * derivative;
-  float leftOutput = leftSpd - output;
-  float rightOutput = rightSpd + output;
-  //Serial.println(output);
+  leftOutput = leftSpd - output;
+  rightOutput = rightSpd + output;
+
   analogWrite(left_pwm_pin,leftOutput);
   analogWrite(right_pwm_pin,rightOutput);
-
+  
 /*
   for (unsigned char i = 0; i < 8; i++)
   {
