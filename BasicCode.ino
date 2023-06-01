@@ -99,6 +99,7 @@ void  ChangeBaseSpeeds(int initialLeftSpd,int finalLeftSpd,int initialRightSpd,i
 
 
 void turn() {
+  Serial.println("donut");
   ChangeBaseSpeeds(leftOutput, 0, rightOutput, 0);
   digitalWrite(right_dir_pin,HIGH);
   ChangeBaseSpeeds(0, turnSpeed, 0, turnSpeed);
@@ -106,7 +107,9 @@ void turn() {
   resetEncoderCount_right();
   while(getEncoderCount_left() < 300 && getEncoderCount_right() < 300) {}
   digitalWrite(right_dir_pin,LOW);
-  ChangeBaseSpeeds(turnSpeed, leftSpd, turnSpeed, rightSpd);
+  ChangeBaseSpeeds(turnSpeed, 200, turnSpeed, 200);
+  leftSpd = 200;
+  rightSpd = 200;
   hasGlazed = true;
 }
 
@@ -162,20 +165,28 @@ void loop() {
           Turn1 = false;  
           resetEncoderCount_left();
           resetEncoderCount_right();
-          Offset = true;
+          hasOffset = true;
       }
   }
    
-  if(Offset) {
+  if(hasOffset) {
       if(getEncoderCount_left() > 2000 && getEncoderCount_right() > 2000) {
           leftSpd = 50;
           rightSpd = 50;  
           resetEncoderCount_left();
           resetEncoderCount_right();
-          Offset = false;
+          hasOffset = false;
+          Offset = true;
       }
   }
-  
+
+  if(Offset) {
+     if(getEncoderCount_left() > 500 && getEncoderCount_right() > 500) {
+          leftSpd = 100;
+          rightSpd = 100;
+          Offset = false;
+     }   
+  }
 
   if(sensorValues[0] < 860 && sensorValues[1] < 780 && sensorValues[2] < 790 && sensorValues[3] < 730 && sensorValues[4] < 720
   && sensorValues[5] < 790 && sensorValues[6] < 810 && sensorValues[7] < 830) {
