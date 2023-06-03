@@ -13,8 +13,8 @@
 uint16_t sensorValues[8]; // right -> left, 0 -> 7
 float sensorMins[8] = {828, 712, 734, 689, 666, 732, 758, 757.2};
 float sensorMax[8] = {1672, 1747, 1766, 1074.6, 1187.6, 1768, 1661.6, 1742.8};
-float sensorWeights[8] = {-15, -14, -12, -8, 8, 12, 14, 15};
-//float sensorWeights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
+float sensorWeights1[8] = {-15, -14, -12, -8, 8, 12, 14, 15};
+float sensorWeights2[8] = {-16, -8, -4, -2, 2, 4, 8, 16};
 float error = 0;
 float pastError = 0;
 
@@ -35,8 +35,8 @@ const int right_pwm_pin=39;
 
 const int LED_RF = 41;
 
-int leftSpd = 70;
-int rightSpd = 70;
+int leftSpd = 30;
+int rightSpd = 30;
 
 float leftOutput = 0;
 float rightOutput = 0;
@@ -55,7 +55,9 @@ bool Offset = false;
 bool hasTurned2 = false;
 bool Turn2 = false;
 
-float sensorFusion() {
+int weightingSystem = 1;
+
+float sensorFusion(float sensorWeights[]) {
   float temp_error = 0;
   float temp_vals[8];
   for (unsigned char i = 0; i < 8; i++)
@@ -111,9 +113,9 @@ void turn() {
   resetEncoderCount_right();
   while(getEncoderCount_left() < 300 && getEncoderCount_right() < 300) {}
   digitalWrite(right_dir_pin,LOW);
-  ChangeBaseSpeeds(turnSpeed, 200, turnSpeed, 200);
-  leftSpd = 200;
-  rightSpd = 200;
+  ChangeBaseSpeeds(turnSpeed, 100, turnSpeed, 100);
+  leftSpd = 100;
+  rightSpd = 100;
   hasGlazed = true;
 }
 
@@ -153,30 +155,45 @@ void loop() {
   ECE3_read_IR(sensorValues);
 
   pastError = error;
-  error = sensorFusion();
+  if(weightingSystem == 1) {
+    error = sensorFusion(sensorWeights1);
+  }
+  else {
+    error = sensorFusion(sensorWeights2);
+  }
+   
   float derivative = error - pastError;
 
   if (hasTurned1 == false){
-   leftSpd = 70;
-   rightSpd = 70;
-   Turn1 = true;
-   hasTurned1 = true;
+    if(getEncoderCount_left() > 250 && getEncoderCount_right() > 250) {
+      leftSpd = 70;
+      rightSpd = 70;
+      Turn1 = true;
+      hasTurned1 = true;
+    }
   }
   if (Turn1 == true){
-      if(getEncoderCount_left() > 1500 && getEncoderCount_right() > 1500) {
+      if(getEncoderCount_left() > 1750 && getEncoderCount_right() > 1750) {
+          ChangeBaseSpeeds(leftSpd, 200, rightSpd, 200);
           leftSpd = 200;
           rightSpd = 200;
           Turn1 = false;  
           resetEncoderCount_left();
           resetEncoderCount_right();
           hasOffset = true;
+          weightingSystem = 1;
+          Kp = 0.025;
+          Kd = 0.3;
       }
   }
    
   if(hasOffset) {
-      if(getEncoderCount_left() > 2000 && getEncoderCount_right() > 2000) {
-          leftSpd = 50;
-          rightSpd = 50;  
+      if(getEncoderCount_left() > 1280 && getEncoderCount_right() > 1280) {
+          weightingSystem = 1;
+          Kp = 0.05;
+          ChangeBaseSpeeds(leftSpd, 20, rightSpd, 20);
+          leftSpd = 20;
+          rightSpd = 20;  
           resetEncoderCount_left();
           resetEncoderCount_right();
           hasOffset = false;
@@ -185,17 +202,18 @@ void loop() {
   }
 
   if(Offset) {
-     if(getEncoderCount_left() > 500 && getEncoderCount_right() > 500) {
-          leftSpd = 100;
-          rightSpd = 100;
+     if(getEncoderCount_left() > 650 && getEncoderCount_right() > 650) {
+          Kp = 0.04;
+          leftSpd = 70;
+          rightSpd = 70;
           resetEncoderCount_left();
           resetEncoderCount_right();
           Offset = false;
      }   
   }
 
-  if(sensorValues[0] < 860 && sensorValues[1] < 780 && sensorValues[2] < 790 && sensorValues[3] < 730 && sensorValues[4] < 720
-  && sensorValues[5] < 790 && sensorValues[6] < 810 && sensorValues[7] < 830) {
+  if(sensorValues[0] < 850 && sensorValues[1] < 770 && sensorValues[2] < 780 && sensorValues[3] < 720 && sensorValues[4] < 710
+  && sensorValues[5] < 780 && sensorValues[6] < 800 && sensorValues[7] < 820) {
     if(donut){
       if(hasGlazed) {
         ChangeBaseSpeeds(leftOutput, 0, rightOutput, 0);
@@ -212,7 +230,13 @@ void loop() {
   }
 
   if (hasTurned2 == false && Offset == false && hasGlazed == true){
-   if(getEncoderCount_left() > 4000 && getEncoderCount_right() > 4000) { 
+    if(getEncoderCount_left() > 1000 && getEncoderCount_right() > 1000) { 
+      ChangeBaseSpeeds(leftOutput, 200, rightOutput, 200);
+      leftSpd = 200;
+      rightSpd = 200;
+    }
+   if(getEncoderCount_left() > 3000 && getEncoderCount_right() > 3000) { 
+    Kp = 0.05;
     leftSpd = 70;
     rightSpd = 70;
     Turn2 = true;
