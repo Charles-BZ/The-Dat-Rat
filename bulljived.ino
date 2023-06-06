@@ -1,13 +1,3 @@
-// Base code.
-// 
-// *  NOTE: this code will do only three things:
-// *    --rotate one wheel, and 
-// *    --blink the right front mainboard LED.
-// *    
-// *  You will need to add more code to
-// *  make the car do anything useful. 
-// 
-
 #include <ECE3.h>
 
 uint16_t sensorValues[8]; // right -> left, 0 -> 7
@@ -76,8 +66,6 @@ float sensorFusion(float sensorWeights[]) {
   return temp_error / 8;
 }
 
-
-
 void  ChangeBaseSpeeds(int initialLeftSpd,int finalLeftSpd,int initialRightSpd,int finalRightSpd) {
 /*  
  *   This function changes the car speed gradually (in about 30 ms) from initial
@@ -107,7 +95,6 @@ void  ChangeBaseSpeeds(int initialLeftSpd,int finalLeftSpd,int initialRightSpd,i
   analogWrite(right_pwm_pin,finalRightSpd);  
 } // end void  ChangeWheelSpeeds
 
-
 void turn() {
   ChangeBaseSpeeds(leftOutput, 0, rightOutput, 0);
   digitalWrite(right_dir_pin,HIGH);
@@ -122,10 +109,9 @@ void turn() {
   hasGlazed = true;
   resetEncoderCount_left();
   resetEncoderCount_right();
-  Kp = 0.02;
+  Kp = 0.015;
   Kd = 0.3;
 }
-
 
 ///////////////////////////////////
 void setup() {
@@ -156,8 +142,6 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly: 
-  
 
   ECE3_read_IR(sensorValues);
 
@@ -174,7 +158,8 @@ void loop() {
   if (hasTurned1 == false){
     //allow rat to align from different starting positions
     if(getEncoderCount_left() > 200 && getEncoderCount_right() > 200) {
-      float Kp = 0.05;
+      Kp = 0.065;
+      
       leftSpd = 70;
       rightSpd = 70;
       Turn1 = true;
@@ -185,6 +170,8 @@ void loop() {
       //time for rat to complete first turn
       if(getEncoderCount_left() > 1750 && getEncoderCount_right() > 1750) {
           ChangeBaseSpeeds(leftSpd, 200, rightSpd, 200);
+          Kp = 0.025;
+          Kd = 0.3;
           leftSpd = 200;
           rightSpd = 200;
           Turn1 = false;  
@@ -192,17 +179,17 @@ void loop() {
           resetEncoderCount_right();
           hasOffset = true;
           weightingSystem = 1;
-          Kp = 0.025;
-          Kd = 0.3;
+          //Kp = 0.025;
+          //Kd = 0.3;
       }
   }
    
   if(hasOffset) {
       //first straightaway
-      if(getEncoderCount_left() > 1220 && getEncoderCount_right() > 1220) {
+      if(getEncoderCount_left() > 1190 && getEncoderCount_right() > 1190) {
           weightingSystem = 1;
-          Kp = 0.025;
-          Kd = 0.3;
+          Kp = 0.020;
+          Kd = 0.15;
           ChangeBaseSpeeds(leftSpd, 20, rightSpd, 20);
           leftSpd = 20;
           rightSpd = 20;  
@@ -227,7 +214,7 @@ void loop() {
      }   
   }
 
-  if(donut2 && getEncoderCount_left() > 780 && getEncoderCount_right() > 780) {
+  if(donut2 && getEncoderCount_left() > 800 && getEncoderCount_right() > 800) {
     turn();
     donut2 = false;
   }
@@ -252,12 +239,13 @@ void loop() {
   //}
   
   //turn function resets encoder counts
-
+  
   if (hasTurned2 == false && Offset == false && hasGlazed == true){
     //rat gets past second offset on way back at 80 speed
-    if(getEncoderCount_left() > 1300 && getEncoderCount_right() > 1300) { 
+    if(getEncoderCount_left() > 1400 && getEncoderCount_right() > 1400) { 
       ChangeBaseSpeeds(leftOutput, 200, rightOutput, 200);
       Kp = 0.025;
+      Kd = 0.3;
       leftSpd = 200;
       rightSpd = 200;
       straight2 = true;
@@ -269,22 +257,31 @@ void loop() {
   
   if (straight2 == true) {
     //rat hits second straight at 200
-    if(getEncoderCount_left() > 1200 && getEncoderCount_right() > 1200) { 
-      Kp = 0.05;
+    if(getEncoderCount_left() > 800 && getEncoderCount_right() > 800) { 
+      //Serial.println("Finished Second Straight");
+      Kp = 0.065;
+      Kd = 0.3;
+      ChangeBaseSpeeds(leftOutput, 70, rightOutput, 70);
       leftSpd = 70;
       rightSpd = 70;
       Turn2 = true;
       straight2 = false;
+      resetEncoderCount_left();
+      resetEncoderCount_right();
+      //Serial.println("read");
     }
   }
   
-  if (Turn2 == true){
-      //rat is on semicircle on way back
-      if(getEncoderCount_left() > 1500 && getEncoderCount_right() > 1500) {
-          leftSpd = 80;
-          rightSpd = 80;
-          Turn2 = false;
-      }
+  if(Turn2 == true) {
+    //Serial.println("turn2");
+    if (getEncoderCount_left() > 1950 && getEncoderCount_right() > 1950) {
+        //Serial.println("end");
+        Turn2 = false;
+        ChangeBaseSpeeds(leftOutput, 0, rightOutput, 0);
+        leftSpd = 0;
+        rightSpd = 0;
+        exit(0);
+    }
   }
   
   float output = Kp * error + Kd * derivative;
